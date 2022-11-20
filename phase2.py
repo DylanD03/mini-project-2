@@ -39,19 +39,81 @@ def author_search(col):
 	# DEBUG
 	print(col.count_documents({}))
 
-	# ask user for a keyword
-	keyword = input("Enter a author keyword: ")
+	# create loop
+	outer_valid = True
+	inner_valid = True
+	while outer_valid:
 
-	# create and run query
-	keyword = keyword.strip()
-	string_match = "(?i)" + keyword.strip() + "(?-i)"
-	# result = col.find({"authors": {"$regex": string_match}})
+		# ask user for a keyword
+		print("Enter a author keyword.")
+		print("Or type b to return back to User Menu.")
+		keyword = input(">>>")
 
-	pipeline = [{"$project": {"authors": 1, "n_citation": 1, "_id": 0}}, {"$match": {"authors": {"$regex" : string_match}}}]
-	result = col.aggregate(pipeline)
+		# check user input
+		keyword = keyword.strip()
+		string_match = "(?i)" + keyword.strip() + "(?-i)"
 
-	for i in result:
-		print(i)
+		if keyword == "b":
+			puter_valid = False
+			return
+
+		# create and run query
+		# result = col.find({"authors": {"$regex": string_match}})
+		pipeline = [{"$project": {"authors": 1, "n_citation": 1, "_id": 0}}, {"$unwind": "$authors" }, {"$match": {"authors": {"$regex" : string_match}}}, {"$group": {"_id": "$authors", "Number of Publications": {"$sum": 1}}}]
+		pipeline_2 = [{"$project": {"authors": 1, "n_citation": 1, "_id": 0}}, {"$unwind": "$authors" }, {"$match": {"authors": keyword.strip()}}, {"$group": {"_id": "$authors", "Number of Publications": {"$sum": 1}}}]
+
+		# display results
+		result = []
+		result_dict = {}
+		result = col.aggregate(pipeline)
+
+		print(result)
+		if result == []:
+			print("There are no matched by the name of:" + keyword)
+			print("Try again!")
+		else:
+			num = 1
+			for i in result:
+				print(str(num) + ") " + str(i))
+				result_dict[num] = i["_id"]
+				num += 1
+
+			print(result_dict)
+			while inner_valid:
+				# The user should be able to select an author and see the title, year and venue of all articles by that author. 
+				# The result should be sorted based on year with more recent articles shown first.
+
+				# diplay user option
+				print("*" * 30)
+				print("Enter the # of the author you want to learn more about.")
+				print("Or enter b to go back.")
+				author = input(">>>")
+				
+
+				# Check user input	
+				if author.strip() == "b":
+					inner_valid = False
+				elif author.isalpha():
+					print("Please enter a number.")
+				elif author[0] == "-":
+					print("Please enter a positive number.")
+				elif author.isdigit() and int(author) <= 0:
+					print("The number you have entered is too low.")
+				elif author.isdigit() and int(author) > len(result_dict):
+					print("The number you have entered is too high.")	
+				else:
+
+					# create and run query
+					pipeline_4 = [{"$project": {"authors": 1, "title": 1, "year": 1, "venue": 1, "_id": 0}}, {"$unwind": "$authors" }, {"$match": {"authors": result_dict[int(author)]}}, {"$group": {"_id": "$authors", "Number of Publications": {"$sum": 1}}}]
+					pipeline_5 = [{"$unwind": "$authors" }, {"$match": {"authors": result_dict[int(author)]}}, {
+						"$group": {"_id": "$authors", "Title": {"$push": "$title"}, "Year": {"$push": "$year"}, "Venue": {"$push": "$venue"}}
+					}, {"$sort":{"year": 1}}]
+
+					result_2 = col.aggregate(pipeline_5)
+
+					# display results
+					for i in result_2:
+						print(i)
 
 def venue_list():
 	'''
@@ -137,7 +199,9 @@ def main():
 	# connecting to dblp collection where data has been previously loaded into
 	col_name = 'dblp' # phase 1 specs
 	col = db[col_name] 
-
+	#db.col.createIndex({"authors": "text", "title": "text", "references": "text", "venue":"text"})
+	#col.create_index([('authors', pymongo.TEXT)], name='search_index', default_language='english')
+	#col.create_index("authors", unique = True)
 
 	# display user options
 	valid = True
