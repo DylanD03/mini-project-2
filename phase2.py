@@ -67,6 +67,7 @@ def author_search(col):
 		result_dict = {}
 		result = col.aggregate(pipeline)
 
+		# determine the number of results
 		print(result)
 		if result == []:
 			print("There are no matched by the name of:" + keyword)
@@ -108,8 +109,12 @@ def author_search(col):
 					pipeline_5 = [{"$unwind": "$authors" }, {"$match": {"authors": result_dict[int(author)]}}, {
 						"$group": {"_id": "$authors", "Title": {"$push": "$title"}, "Year": {"$push": "$year"}, "Venue": {"$push": "$venue"}}
 					}, {"$sort":{"year": 1}}]
+					pipeline_6 = [{"$unwind": "$authors" }, {"$match": {"authors": result_dict[int(author)]}}, {
+						"$group": {"_id": "$_id", "Title": {"$push": "$title"}, "Year": {"$push": "$year"}, "Venue": {"$push": "$venue"}}
+					}, {"$sort":{"year": 1}}]
 
-					result_2 = col.aggregate(pipeline_5)
+
+					result_2 = col.aggregate(pipeline_6)
 
 					# display results
 					for i in result_2:
